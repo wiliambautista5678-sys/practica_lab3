@@ -49,12 +49,11 @@ function createInfoLabel() {
     return sprite;
 }
 
-// FLUJO PRINCIPAL ASÍNCRONO AL CLIC del BOTÓN
 btnIniciar.addEventListener("click", async () => {
     try {
         overlay.style.display = "none";
 
-        // 1. Permisos para sensores de movimiento (Crucial para dispositivos móviles)
+        // 1. Permisos para sensores de movimiento (Giroscopio/Brújula)
         if (typeof DeviceOrientationEvent !== "undefined" && typeof DeviceOrientationEvent.requestPermission === "function") {
             const permissionState = await DeviceOrientationEvent.requestPermission();
             if (permissionState !== "granted") {
@@ -64,7 +63,7 @@ btnIniciar.addEventListener("click", async () => {
             }
         }
 
-        // 2. Inicialización estricta de la App LocAR
+        // 2. Inicialización de la App LocAR
         const app = new App({
             canvas,
             cameraOptions: { 
@@ -74,22 +73,21 @@ btnIniciar.addEventListener("click", async () => {
             }
         });
 
-        // 3. Arrancar la aplicación y capturar el motor LocAR
         const locar = await app.start();
 
-        // 4. Agregar Iluminación para los materiales
-        const ambientLight = new THREE.AmbientLight(0xffffff, 2.0);
+        // 3. Luces intensas para hacer los cubos visibles
+        const ambientLight = new THREE.AmbientLight(0xffffff, 2.5);
         app.scene.add(ambientLight);
         
-        const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
-        dirLight.position.set(0, 20, 10);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1.8);
+        dirLight.position.set(10, 20, 10);
         app.scene.add(dirLight);
 
-        // 5. Iniciar la escucha nativa del hardware GPS móvil
+        // 4. Iniciar hardware de localización
         locar.startGps();
         console.log("🚀 Sensores AR y GPS vinculados exitosamente.");
 
-        // 6. SOLUCIÓN CORREGIDA: Escuchar la actualización de GPS dentro del flujo del objeto activo
+        // 5. Monitoreo en el Panel de Diagnóstico
         locar.on("gpsupdate", (ev) => {
             const debugPanel = document.querySelector("#debug-panel");
             if (debugPanel) {
@@ -102,15 +100,40 @@ btnIniciar.addEventListener("click", async () => {
             }
         });
 
-        // 7. Forzar la inyección de los cubos cardinales de prueba
+        // 6. Inyección de objetos en la escena
         cargarModeloRouter(locar);
 
-        // 8. BUCLE DE ANIMACIÓN ESTÁNDAR COMPATIBLE
+        // 7. BRÚJULA DE RESPALDO: Escucha nativa de orientación absoluta
+        let alphaOrientacion = 0;
+        window.addEventListener("deviceorientationabsolute", (event) => {
+            // Captura los grados de rotación reales respecto al norte magnético
+            if (event.alpha !== null) {
+                alphaOrientacion = event.alpha; 
+            }
+        }, true);
+
+        // En caso de que no soporte absolute (ej. algunos iPhones viejos) usamos el estándar
+        window.addEventListener("deviceorientation", (event) => {
+            if (event.webkitCompassHeading) {
+                alphaOrientacion = -event.webkitCompassHeading; // Ajuste para iOS
+            } else if (event.alpha !== null && !event.absolute) {
+                alphaOrientacion = event.alpha;
+            }
+        }, true);
+
+        // 8. BUCLE DE ANIMACIÓN INTEGRADO
         function renderLoop() {
             requestAnimationFrame(renderLoop);
 
             if (app && typeof app.update === "function") {
                 app.update(); 
+            }
+
+            // Forzar de forma manual la rotación de la cámara si LocAR no logra acoplar el giroscopio
+            if (app.camera && alphaOrientacion !== 0) {
+                // Convertir grados de la brújula a radianes de Three.js en el eje Y (giro horizontal)
+                const radianes = THREE.MathUtils.degToRad(alphaOrientacion);
+                app.camera.rotation.y = radianes;
             }
 
             if (app.renderer && app.scene && app.camera) {
@@ -127,15 +150,15 @@ btnIniciar.addEventListener("click", async () => {
 });
 
 function cargarModeloRouter(locar) {
-    // Forzamos opciones de alta precisión para evitar coordenadas congeladas en 0
     navigator.geolocation.getCurrentPosition(
         (position) => {
             const miLat = position.coords.latitude;
             const miLon = position.coords.longitude;
             
-            console.log(`📍 Posición central fija para cardinales: Lat: ${miLat}, Lon: ${miLon}`);
+            console.log(`📍 Posición base para cubos: Lat: ${miLat}, Lon: ${miLon}`);
 
-            const DISTANCIA = 0.0001; 
+            // Incrementamos la distancia a 0.00015 (~16 metros) y los hacemos más grandes para verlos fácil
+            const DISTANCIA = 0.00015; 
 
             const puntosCardinales = [
                 { nombre: "NORTE (Verde)", lat: miLat + DISTANCIA, lon: miLon, color: 0x00FF00 },
@@ -145,11 +168,12 @@ function cargarModeloRouter(locar) {
             ];
 
             puntosCardinales.forEach((punto) => {
-                const geometry = new THREE.BoxGeometry(3, 3, 3);
+                // Cubos gigantes de 4x4x4 metros para que no pasen desapercibidos
+                const geometry = new THREE.BoxGeometry(4, 4, 4);
                 const material = new THREE.MeshStandardMaterial({ 
                     color: punto.color,
-                    roughness: 0.4,
-                    metalness: 0.1
+                    roughness: 0.2,
+                    metalness: 0.2
                 });
                 const cubo = new THREE.Mesh(geometry, material);
 
@@ -160,8 +184,9 @@ function cargarModeloRouter(locar) {
                     grupoCubo.add(createInfoLabel()); 
                 }
 
-                locar.add(grupoCubo, punto.lon, punto.lat, 1.5);
-                console.log(`✅ Cubo inyectado en el ${punto.nombre}`);
+                // Posicionamiento con una elevación de 2 metros sobre el suelo
+                locar.add(grupoCubo, punto.lon, punto.lat, 2.0);
+                console.log(`✅ Cubo inyectado en: ${punto.nombre}`);
             });
         }, 
         (error) => {
@@ -174,3 +199,4 @@ function cargarModeloRouter(locar) {
         }
     ); 
 }
+
