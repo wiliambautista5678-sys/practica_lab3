@@ -49,10 +49,12 @@ function createInfoLabel() {
     return sprite;
 }
 
+// FLUJO PRINCIPAL ASÍNCRONO AL CLIC del BOTÓN
 btnIniciar.addEventListener("click", async () => {
     try {
         overlay.style.display = "none";
 
+        // 1. Permisos para sensores de movimiento (Crucial para dispositivos móviles)
         if (typeof DeviceOrientationEvent !== "undefined" && typeof DeviceOrientationEvent.requestPermission === "function") {
             const permissionState = await DeviceOrientationEvent.requestPermission();
             if (permissionState !== "granted") {
@@ -62,6 +64,7 @@ btnIniciar.addEventListener("click", async () => {
             }
         }
 
+        // 2. Inicialización estricta de la App LocAR
         const app = new App({
             canvas,
             cameraOptions: { 
@@ -71,8 +74,10 @@ btnIniciar.addEventListener("click", async () => {
             }
         });
 
+        // 3. Arrancar la aplicación y capturar el motor LocAR
         const locar = await app.start();
 
+        // 4. Agregar Iluminación para los materiales
         const ambientLight = new THREE.AmbientLight(0xffffff, 2.0);
         app.scene.add(ambientLight);
         
@@ -80,12 +85,27 @@ btnIniciar.addEventListener("click", async () => {
         dirLight.position.set(0, 20, 10);
         app.scene.add(dirLight);
 
+        // 5. Iniciar la escucha nativa del hardware GPS móvil
         locar.startGps();
         console.log("🚀 Sensores AR y GPS vinculados exitosamente.");
 
+        // 6. SOLUCIÓN CORREGIDA: Escuchar la actualización de GPS dentro del flujo del objeto activo
+        locar.on("gpsupdate", (ev) => {
+            const debugPanel = document.querySelector("#debug-panel");
+            if (debugPanel) {
+                debugPanel.innerHTML = `
+                    📡 Status GPS: CONECTADO<br>
+                    📍 Mi Lat: ${ev.position.coords.latitude.toFixed(6)}<br>
+                    📍 Mi Lon: ${ev.position.coords.longitude.toFixed(6)}<br>
+                    🎯 Precisión: ${ev.position.coords.accuracy.toFixed(1)} metros
+                `;
+            }
+        });
+
+        // 7. Forzar la inyección de los cubos cardinales de prueba
         cargarModeloRouter(locar);
 
-        // BUCLE DE ANIMACIÓN ESTÁNDAR COMPATIBLE
+        // 8. BUCLE DE ANIMACIÓN ESTÁNDAR COMPATIBLE
         function renderLoop() {
             requestAnimationFrame(renderLoop);
 
@@ -107,6 +127,7 @@ btnIniciar.addEventListener("click", async () => {
 });
 
 function cargarModeloRouter(locar) {
+    // Forzamos opciones de alta precisión para evitar coordenadas congeladas en 0
     navigator.geolocation.getCurrentPosition(
         (position) => {
             const miLat = position.coords.latitude;
@@ -147,20 +168,9 @@ function cargarModeloRouter(locar) {
             alert("❌ Error al obtener el GPS de referencia: " + error.message);
         }, 
         {
-            enableHighAccuracy: true
+            enableHighAccuracy: true,
+            timeout: 15000,
+            maximumAge: 0
         }
     ); 
 }
-
-locar.on("gpsupdate", (ev) => {
-    const debugPanel = document.querySelector("#debug-panel");
-    if (debugPanel) {
-        debugPanel.innerHTML = `
-            📡 Status GPS: CONECTADO<br>
-            📍 Mi Lat: ${ev.position.coords.latitude.toFixed(6)}<br>
-            📍 Mi Lon: ${ev.position.coords.longitude.toFixed(6)}<br>
-            🎯 Precisión: ${ev.position.coords.accuracy.toFixed(1)} metros
-        `;
-    }
-    console.log(`Posición actualizada -> Lat: ${ev.position.coords.latitude}, Lon: ${ev.position.coords.longitude}`);
-});
