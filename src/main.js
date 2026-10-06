@@ -12,10 +12,19 @@ const TARGET = { lat: -2.299114, lon: -78.118125 };
 // Escuchar el clic del botón del usuario (Requisito obligatorio del navegador)
 btnIniciar.addEventListener("click", async () => {
     try {
-        // Ocultar la pantalla de carga
         overlay.style.display = "none";
 
-        // Inicializar LocAR tras la interacción del usuario
+        // 1. SOLICITUD DE PERMISOS PARA SENSORES (Crucial para iOS y Android moderno)
+        if (typeof DeviceOrientationEvent !== "undefined" && typeof DeviceOrientationEvent.requestPermission === "function") {
+            const permissionState = await DeviceOrientationEvent.requestPermission();
+            if (permissionState !== "granted") {
+                alert("⚠️ Se requieren permisos de orientación para alinear los cubos con el mundo real.");
+                overlay.style.display = "flex";
+                return;
+            }
+        }
+
+        // 2. Inicializar la App LocAR con renderizado continuo forzado
         const app = new App({
             canvas,
             cameraOptions: { hFov: 80, near: 0.001, far: 1500 }
@@ -23,18 +32,36 @@ btnIniciar.addEventListener("click", async () => {
 
         const locar = await app.start();
         
-        // Activar sensores de movimiento y GPS
+        // 3. Agregar luces obligatorias para que los cubos tengan color y no sean invisibles/negros
+        const ambientLight = new THREE.AmbientLight(0xffffff, 1.8);
+        app.scene.add(ambientLight);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
+        dirLight.position.set(0, 10, 10);
+        app.scene.add(dirLight);
+
+        // 4. Activar sensores AR y GPS de LocAR
         locar.startGps();
         console.log("🚀 Sensores AR y GPS activados correctamente.");
 
-        // Cargar el modelo 3D del Router
+        // 5. Cargar los cubos cardinales de prueba
         cargarModeloRouter(locar);
+
+        // 6. BUCLE DE ANIMACIÓN (Obligatorio en algunas versiones de LocAR para actualizar la brújula)
+        function animate() {
+            requestAnimationFrame(animate);
+            // Fuerza a la app a sincronizar la orientación del teléfono con la cámara de Three.js
+            if (app && app.update) {
+                app.update(); 
+            }
+        }
+        animate();
 
     } catch (error) {
         alert("Error al iniciar los componentes AR: " + error.message);
-        overlay.style.display = "flex"; // Volver a mostrar si falla
+        overlay.style.display = "flex";
     }
 });
+
 
 // Envolver la carga del modelo en una función limpia
 function cargarModeloRouter(locar) {
