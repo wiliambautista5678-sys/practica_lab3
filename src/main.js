@@ -89,6 +89,5 @@ function cargarModeloRouter(locar) {
     }, {
         enableHighAccuracy: true
     });
-}
 
 }
