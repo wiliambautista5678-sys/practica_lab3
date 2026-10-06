@@ -14,53 +14,57 @@ btnIniciar.addEventListener("click", async () => {
     try {
         overlay.style.display = "none";
 
-        // 1. SOLICITUD DE PERMISOS PARA SENSORES (Crucial para iOS y Android moderno)
+        // 1. Solicitud obligatoria de permisos para sensores de movimiento (Giroscopio)
         if (typeof DeviceOrientationEvent !== "undefined" && typeof DeviceOrientationEvent.requestPermission === "function") {
             const permissionState = await DeviceOrientationEvent.requestPermission();
             if (permissionState !== "granted") {
-                alert("⚠️ Se requieren permisos de orientación para alinear los cubos con el mundo real.");
+                alert("⚠️ Se requieren permisos de orientación para alinear los componentes AR.");
                 overlay.style.display = "flex";
                 return;
             }
         }
 
-        // 2. Inicializar la App LocAR con renderizado continuo forzado
+        // 2. Inicialización estricta de la App LocAR
         const app = new App({
             canvas,
-            cameraOptions: { hFov: 80, near: 0.001, far: 1500 }
+            cameraOptions: { 
+                hFov: 80, 
+                near: 0.1,  // Cambiado a 0.1 para evitar problemas de frustum clipping
+                far: 2000 
+            }
         });
 
+        // 3. Arrancar la aplicación y capturar la instancia del motor
         const locar = await app.start();
-        
-        // 3. Agregar luces obligatorias para que los cubos tengan color y no sean invisibles/negros
-        const ambientLight = new THREE.AmbientLight(0xffffff, 1.8);
+
+        // 4. Agregar Iluminación (Imprescindible para materiales MeshStandardMaterial)
+        const ambientLight = new THREE.AmbientLight(0xffffff, 2.0);
         app.scene.add(ambientLight);
+        
         const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
-        dirLight.position.set(0, 10, 10);
+        dirLight.position.set(0, 20, 10);
         app.scene.add(dirLight);
 
-        // 4. Activar sensores AR y GPS de LocAR
+        // 5. Iniciar la escucha del hardware GPS interno
         locar.startGps();
-        console.log("🚀 Sensores AR y GPS activados correctamente.");
+        console.log("🚀 Sensores AR y GPS vinculados exitosamente.");
 
-        // 5. Cargar los cubos cardinales de prueba
+        // 6. Forzar la inyección de los cubos cardinales de prueba
         cargarModeloRouter(locar);
 
-        // 6. BUCLE DE ANIMACIÓN (Obligatorio en algunas versiones de LocAR para actualizar la brújula)
-        function animate() {
-            requestAnimationFrame(animate);
-            // Fuerza a la app a sincronizar la orientación del teléfono con la cámara de Three.js
-            if (app && app.update) {
-                app.update(); 
-            }
-        }
-        animate();
+        // 7. BUCLE DE RENDERIZADO OFICIAL (Corrección del problema de visibilidad)
+        // Redefinimos el ciclo de animación asegurando que la cámara de Three.js actualice su matriz
+        app.animate((time) => {
+            // LocAR.js gestiona internamente la rotación de la cámara basándose en el giroscopio aquí.
+            // Si necesitas animar algo de Three.js (como rotar un cubo), puedes hacerlo en este bloque.
+        });
 
     } catch (error) {
-        alert("Error al iniciar los componentes AR: " + error.message);
+        alert("Error crítico al iniciar componentes AR: " + error.message);
         overlay.style.display = "flex";
     }
 });
+
 
 
 // Envolver la carga del modelo en una función limpia
