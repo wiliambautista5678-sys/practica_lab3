@@ -54,8 +54,37 @@ btnIniciar.addEventListener("click", async () => {
 
         // 7. BUCLE DE RENDERIZADO OFICIAL (Corrección del problema de visibilidad)
         // Redefinimos el ciclo de animación asegurando que la cámara de Three.js actualice su matriz
-        app.animate((time) => {
-            // LocAR.js gestiona internamente la rotación de la cámara basándose en el giroscopio aquí.
+              // 5. Iniciar la escucha del hardware GPS interno
+        locar.startGps();
+        console.log("🚀 Sensores AR y GPS vinculados exitosamente.");
+
+        // 6. Forzar la inyección de los cubos cardinales de prueba
+        cargarModeloRouter(locar);
+
+        // ==========================================================
+        // 7. BUCLE DE ANIMACIÓN ESTÁNDAR Y COMPATIBLE (CORRECCIÓN)
+        // ==========================================================
+        const clock = new THREE.Clock();
+
+        function renderLoop() {
+            // Reclama el siguiente fotograma del navegador
+            requestAnimationFrame(renderLoop);
+
+            // 1. Obliga a LocAR.js a sincronizar los sensores de orientación física con Three.js
+            if (app && typeof app.update === "function") {
+                app.update(); 
+            }
+
+            // 2. Ejecuta el renderizado de la escena usando los objetos base de Three.js
+            // app.renderer y app.camera son creados automáticamente por LocAR al iniciar
+            if (app.renderer && app.scene && app.camera) {
+                app.renderer.render(app.scene, app.camera);
+            }
+        }
+
+        // Ejecutar el bucle de animación por primera vez
+        renderLoop();
+   // LocAR.js gestiona internamente la rotación de la cámara basándose en el giroscopio aquí.
             // Si necesitas animar algo de Three.js (como rotar un cubo), puedes hacerlo en este bloque.
         });
 
