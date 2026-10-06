@@ -39,48 +39,11 @@ btnIniciar.addEventListener("click", async () => {
 // Envolver la carga del modelo en una función limpia
 function cargarModeloRouter(locar) {
     const loader = new GLTFLoader();
-    
-    loader.load(
-        "/models/router.glb", 
-        function (gltf) {
-            const routerMesh = gltf.scene;
-
-            // 📐 Forzar escala visible si el modelo viene muy pequeño de Blender
-            routerMesh.scale.set(15, 15, 15); 
-            
-            const routerGroup = new THREE.Group();
-            routerGroup.add(routerMesh);
-            
-            // 🏷️ Opcional: Agregar la etiqueta informativa si ya la programaste
-            if (typeof createInfoLabel === "function") {
-                routerGroup.add(createInfoLabel());
-            }
-
-            // 📍 TRUCO DE PRUEBA: Obtener tu posición real instantánea 
-            // Esto asegura que el GLB aparezca a tu lado sin importar dónde estés testando
-            navigator.geolocation.getCurrentPosition((position) => {
-                const miLat = position.coords.latitude;
-                const miLon = position.coords.longitude;
-                
-                // Añadir el objeto a 0.0001 grados de ti (unos 10 metros al frente)
-                locar.add(
-                    routerGroup, 
-                    miLon + 0.0001, 
-                    miLat + 0.0001, 
-                    0 // Altura a nivel del suelo
-                );
-                
-                console.log(`✅ GLB inyectado con éxito cerca de tus coordenadas: ${miLat}, ${miLon}`);
-            });
-
-        },
-        function (xhr) {
-            console.log(`⚡ Cargando GLB: ${(xhr.loaded / xhr.total * 100)}% cargado`);
-        },
-        function (error) {
-            console.error("❌ Error al procesar el archivo GLB:", error);
-        }
-    );
-}
-
+    loader.load("/models/router.glb", function (gltf) {
+        const routerGroup = new THREE.Group();
+        routerGroup.add(gltf.scene);
+        
+        // Añadir al entorno AR
+        locar.add(routerGroup, TARGET.lon, TARGET.lat, 0);
+    });
 }
