@@ -26,6 +26,15 @@
     <div id="ar-overlay">
         <button id="btn-iniciar-ar" class="btn-inicio">Iniciar AR</button>
     </div>
+<!-- Panel de Monitoreo en Tiempo Real -->
+<div id="debug-panel" style="position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.8); color: #00FF00; padding: 10px; font-family: monospace; font-size: 12px; z-index: 20; border-radius: 5px; pointer-events: none;">
+    📡 Status GPS: Esperando click...<br>
+    📍 Mi Lat: --<br>
+    📍 Mi Lon: --<br>
+    🎯 Precisión: -- m
+</div>
+
+
 
     <!-- Canvas donde Three.js y LocAR renderizarán la cámara y el modelo 3D -->
     <canvas id="canvas-ar"></canvas>
