@@ -89,5 +89,17 @@ function cargarModeloRouter(locar) {
     }, {
         enableHighAccuracy: true
     });
+locar.on("gpsupdate", (ev) => {
+    const debugPanel = document.querySelector("#debug-panel");
+    if (debugPanel) {
+        debugPanel.innerHTML = `
+            📡 Status GPS: CONECTADO<br>
+            📍 Mi Lat: ${ev.position.coords.latitude.toFixed(6)}<br>
+            📍 Mi Lon: ${ev.position.coords.longitude.toFixed(6)}<br>
+            🎯 Precisión: ${ev.position.coords.accuracy.toFixed(1)} metros
+        `;
+    }
+    console.log(`Posición actualizada -> Lat: ${ev.position.coords.latitude}, Lon: ${ev.position.coords.longitude}`);
+});
 
 }
